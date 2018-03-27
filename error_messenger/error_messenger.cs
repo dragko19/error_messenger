@@ -1,12 +1,66 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.IO;
 
-namespace error_messenger
+
+class Error_messenger
 {
-    class Error_messenger
+
+    private Stream _MemStr;
+    private StreamWriter _StrWr;
+    private int _Errors_count = 0;
+    
+    public Error_messenger(ref MemoryStream MemStr)
     {
+        _MemStr = MemStr;
+        _StrWr = new StreamWriter(_MemStr);
     }
+
+    ~Error_messenger()
+    {
+        _MemStr.Close();
+        _StrWr.Close();
+    }
+
+    public int Get_error_count()
+    {
+        return _Errors_count;
+    }
+
+    public void Report_error(string msg)
+    {
+        _MemStr.Seek(0, SeekOrigin.End);
+        _StrWr.WriteLine(msg);
+        _StrWr.Flush();
+        _Errors_count++;
+    }
+
+    public void Print_current_state()
+    {
+        StreamReader sr = new StreamReader(_MemStr);
+        Console.WriteLine("Number of errors: {0}", _Errors_count);
+        _MemStr.Seek(0, SeekOrigin.Begin);
+        string line;
+        while((line = sr.ReadLine()) != null)
+        {
+            Console.WriteLine(line);
+        }
+    }
+
+    public void Save_report(string path)
+    {
+        _StrWr.WriteLine("Total number of errors: " + Get_error_count());
+        _MemStr.Seek(0, SeekOrigin.Begin);        
+        try
+        {
+            FileStream fS = new FileStream(path, FileMode.OpenOrCreate);
+            _MemStr.CopyTo(fS);
+            fS.Flush();                
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+    }
+
 }
+
