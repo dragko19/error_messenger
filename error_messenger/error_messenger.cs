@@ -1,59 +1,51 @@
 ﻿using System;
 using System.IO;
+using System.Collections.Generic;
 
 
 class Error_messenger
 {
 
-    private Stream _MemStr;
-    private StreamWriter _StrWr;
-    private int _Errors_count = 0;
+    private List<string> _Messages  = new List<string>();
+    private uint _Errors_count;
     
-    public Error_messenger(ref MemoryStream MemStr)
+    public Error_messenger()
     {
-        _MemStr = MemStr;
-        _StrWr = new StreamWriter(_MemStr);
+        _Errors_count = 0;
     }
 
-    ~Error_messenger()
-    {
-        _MemStr.Close();
-        _StrWr.Close();
-    }
-
-    public int Get_error_count()
+    public uint Get_error_count()
     {
         return _Errors_count;
     }
 
     public void Report_error(string msg)
     {
-        _MemStr.Seek(0, SeekOrigin.End);
-        _StrWr.WriteLine(msg);
-        _StrWr.Flush();
+        _Messages.Add(msg);
         _Errors_count++;
     }
 
-    public void Print_current_state()
+    public void Print_current_state(ref MemoryStream MemStr)
     {
-        StreamReader sr = new StreamReader(_MemStr);
-        Console.WriteLine("Number of errors: {0}", _Errors_count);
-        _MemStr.Seek(0, SeekOrigin.Begin);
-        string line;
-        while((line = sr.ReadLine()) != null)
+        MemStr.Seek(0, SeekOrigin.Begin);
+        using (StreamWriter sw = new StreamWriter(MemStr))
         {
-            Console.WriteLine(line);
+            sw.WriteLine("Number of errors: {0}", _Errors_count);
+            foreach (string lines in _Messages)
+                sw.WriteLine(lines);
+            sw.Flush();
         }
     }
 
-    public void Save_report(string path)
+    public void Save_report_to_file(string path)
     {
-        _StrWr.WriteLine("Total number of errors: " + Get_error_count());
-        _MemStr.Seek(0, SeekOrigin.Begin);        
+        MemoryStream MemStr = new MemoryStream();
+        Print_current_state(ref MemStr);
+        MemStr.Seek(0, SeekOrigin.Begin);
         try
         {
             FileStream fS = new FileStream(path, FileMode.OpenOrCreate);
-            _MemStr.CopyTo(fS);
+            MemStr.CopyTo(fS);
             fS.Flush();                
         }
         catch (Exception ex)
