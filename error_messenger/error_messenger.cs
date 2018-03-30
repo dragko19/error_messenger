@@ -1,52 +1,54 @@
 ﻿using System;
 using System.IO;
-using System.Collections.Generic;
 
 
 class Error_messenger
 {
 
-    private List<string> _Messages  = new List<string>();
-    private uint _Errors_count;
-    
-    public Error_messenger()
+    private Stream _MemStr;
+    private StreamWriter _StrWr;
+    private int _Errors_count = 0;
+
+    public Error_messenger(ref MemoryStream MemStr)
     {
-        _Errors_count = 0;
+        _MemStr = MemStr;
+        _StrWr = new StreamWriter(_MemStr);
     }
 
-    public uint Get_error_count()
+    public int Get_error_count()
     {
         return _Errors_count;
     }
 
     public void Report_error(string msg)
     {
-        _Messages.Add(msg);
+        _MemStr.Seek(0, SeekOrigin.End);
+        _StrWr.WriteLine(msg);
+        _StrWr.Flush();
         _Errors_count++;
     }
 
-    public void Print_current_state(ref MemoryStream MemStr)
+    public void Print_current_state()
     {
-        MemStr.Seek(0, SeekOrigin.Begin);
-        using (StreamWriter sw = new StreamWriter(MemStr))
+        StreamReader sr = new StreamReader(_MemStr);
+        Console.WriteLine("Number of errors: {0}", _Errors_count);
+        _MemStr.Seek(0, SeekOrigin.Begin);
+        string line;
+        while ((line = sr.ReadLine()) != null)
         {
-            sw.WriteLine("Number of errors: {0}", _Errors_count);
-            foreach (string lines in _Messages)
-                sw.WriteLine(lines);
-            sw.Flush();
+            Console.WriteLine(line);
         }
     }
 
-    public void Save_report_to_file(string path)
+    public void Save_report(string path)
     {
-        MemoryStream MemStr = new MemoryStream();
-        Print_current_state(ref MemStr);
-        MemStr.Seek(0, SeekOrigin.Begin);
+        _StrWr.WriteLine("Total number of errors: " + Get_error_count());
+        _MemStr.Seek(0, SeekOrigin.Begin);
         try
         {
             FileStream fS = new FileStream(path, FileMode.OpenOrCreate);
-            MemStr.CopyTo(fS);
-            fS.Flush();                
+            _MemStr.CopyTo(fS);
+            fS.Flush();
         }
         catch (Exception ex)
         {
@@ -55,4 +57,3 @@ class Error_messenger
     }
 
 }
-
